@@ -1,0 +1,20 @@
+# node
+node_modules
+.next
+dist
+.env
+
+# docker
+*.tar
+*.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# logs
+*.log

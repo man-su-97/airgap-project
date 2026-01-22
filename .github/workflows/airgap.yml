@@ -1,0 +1,57 @@
+name: Airgap Build Pipeline
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Detect changes
+        id: changes
+        run: |
+          echo "FRONTEND_CHANGED=false" >> $GITHUB_ENV
+          echo "BACKEND_CHANGED=false" >> $GITHUB_ENV
+
+          git diff --name-only HEAD~1 HEAD > files.txt || true
+
+          if grep -q "^frontend/" files.txt; then
+            echo "FRONTEND_CHANGED=true" >> $GITHUB_ENV
+          fi
+
+          if grep -q "^backend/" files.txt; then
+            echo "BACKEND_CHANGED=true" >> $GITHUB_ENV
+          fi
+
+      - name: Build frontend
+        if: env.FRONTEND_CHANGED == 'true'
+        run: |
+          docker build -t airgap-frontend:${{ github.run_number }} frontend
+          docker save airgap-frontend:${{ github.run_number }} -o frontend.tar
+
+      - name: Build backend
+        if: env.BACKEND_CHANGED == 'true'
+        run: |
+          docker build -t airgap-backend:${{ github.run_number }} backend
+          docker save airgap-backend:${{ github.run_number }} -o backend.tar
+
+      - name: Package airgap bundle
+        run: |
+          mkdir airgap-release
+          mv *.tar airgap-release || true
+          cp -r k8s airgap-release
+          tar czf airgap-release-${{ github.run_number }}.tar.gz airgap-release
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airgap-release
+          path: airgap-release-${{ github.run_number }}.tar.gz
