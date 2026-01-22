@@ -9,49 +9,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Docker
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Detect changes
-        id: changes
+      - name: Build Backend Image
         run: |
-          echo "FRONTEND_CHANGED=false" >> $GITHUB_ENV
-          echo "BACKEND_CHANGED=false" >> $GITHUB_ENV
+          cd my-backend
+          docker build -t airgap-backend:1.0 .
 
-          git diff --name-only HEAD~1 HEAD > files.txt || true
-
-          if grep -q "^my-app/" files.txt; then
-            echo "FRONTEND_CHANGED=true" >> $GITHUB_ENV
-          fi
-
-          if grep -q "^my-backend/" files.txt; then
-            echo "BACKEND_CHANGED=true" >> $GITHUB_ENV
-          fi
-
-      - name: Build frontend
-        if: env.FRONTEND_CHANGED == 'true'
+      - name: Build Frontend Image
         run: |
-          docker build -t airgap-frontend:${{ github.run_number }} my-app
-          docker save airgap-frontend:${{ github.run_number }} -o frontend.tar
+          cd my-app
+          docker build -t airgap-frontend:1.0 .
 
-      - name: Build backend
-        if: env.BACKEND_CHANGED == 'true'
+      - name: Save Docker Images
         run: |
-          docker build -t airgap-backend:${{ github.run_number }} my-backend
-          docker save airgap-backend:${{ github.run_number }} -o backend.tar
+          mkdir -p airgap-release
+          docker save airgap-backend:1.0 -o airgap-release/backend.tar
+          docker save airgap-frontend:1.0 -o airgap-release/frontend.tar
 
-      - name: Package airgap release
+      - name: Copy Kubernetes Manifests
         run: |
-          mkdir airgap-release
-          mv *.tar airgap-release || true
-          cp -r k8s airgap-release
-          tar czf airgap-release-${{ github.run_number }}.tar.gz airgap-release
+          cp -r k8s airgap-release/
 
-      - name: Upload release artifact
+      - name: Upload Airgap Release
         uses: actions/upload-artifact@v4
         with:
           name: airgap-release
-          path: airgap-release-${{ github.run_number }}.tar.gz
+          path: airgap-release/
