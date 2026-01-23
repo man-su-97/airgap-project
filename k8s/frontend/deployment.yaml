@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: localhost:5000/airgap-frontend:1.0
-          imagePullPolicy: IfNotPresent
+          image: localhost:5000/airgap-frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           env:
