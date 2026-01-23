@@ -3,6 +3,7 @@ name: Airgap Build Pipeline
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,31 +13,46 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set Build Version
+        run: |
+          echo "VERSION=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Backend Image
         run: |
           cd my-backend
-          docker build -t airgap-backend:1.0 .
+          docker build -t airgap-backend:${{ env.VERSION }} .
 
       - name: Build Frontend Image
         run: |
           cd my-app
-          docker build -t airgap-frontend:1.0 .
+          docker build -t airgap-frontend:${{ env.VERSION }} .
+
+      - name: Prepare Airgap Folder
+        run: |
+          mkdir -p airgap-release
 
       - name: Save Docker Images
         run: |
-          mkdir -p airgap-release
-          docker save airgap-backend:1.0 -o airgap-release/backend.tar
-          docker save airgap-frontend:1.0 -o airgap-release/frontend.tar
+          docker save airgap-backend:${{ env.VERSION }} -o airgap-release/backend.tar
+          docker save airgap-frontend:${{ env.VERSION }} -o airgap-release/frontend.tar
 
       - name: Copy Kubernetes Manifests
         run: |
           cp -r k8s airgap-release/
 
-      - name: Upload Airgap Release
+      - name: Copy Deployment Files
+        run: |
+          cp scripts/deploy.ps1 docs/README.txt airgap-release/
+
+      - name: Create Final Airgap Bundle
+        run: |
+          tar -czf airgap-release-bundle-${{ env.VERSION }}.tar.gz airgap-release
+
+      - name: Upload Airgap Release Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: airgap-release
-          path: airgap-release/
+          name: airgap-release-${{ env.VERSION }}
+          path: airgap-release-bundle-${{ env.VERSION }}.tar.gz
