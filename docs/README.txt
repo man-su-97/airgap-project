@@ -5,82 +5,118 @@
 This package contains a fully air-gapped deployment bundle
 for a Next.js + NestJS application using Docker and Kubernetes.
 
+This deployment is fully automated using the included
+PowerShell script (deploy.ps1).
+
+--------------------------------------------------------
+ SYSTEM REQUIREMENTS
+--------------------------------------------------------
+
+- Windows 10/11
+- Docker Desktop with Kubernetes enabled
+- kubectl available in PATH
+- Internet access NOT required
+
+--------------------------------------------------------
+ PACKAGE CONTENTS
+--------------------------------------------------------
+
+- backend.tar        → Backend Docker image
+- frontend.tar       → Frontend Docker image
+- k8s/               → Kubernetes manifests
+- deploy.ps1         → Automated deployment script
+- README.txt         → This documentation
 
 --------------------------------------------------------
  STEP 1 — EXTRACT DEPLOYMENT BUNDLE
 --------------------------------------------------------
 
-tar -xzf airgap-release-bundle.tar.gz
+tar -xzf airgap-release-bundle-*.tar.gz
 cd airgap-release
 
 --------------------------------------------------------
- STEP 2 — START LOCAL CONTAINER REGISTRY
+ STEP 2 — RUN DEPLOYMENT SCRIPT
 --------------------------------------------------------
 
-docker run -d -p 5000:5000 --restart always --name local-registry registry:2
+Open PowerShell and run:
 
-Verify:
+.\deploy.ps1
 
-docker ps | findstr registry
+NOTE:
+If script execution is blocked, run:
 
---------------------------------------------------------
- STEP 3 — LOAD DOCKER IMAGES
---------------------------------------------------------
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
-docker load -i backend.tar
-docker load -i frontend.tar
+Then rerun deploy.ps1
 
 --------------------------------------------------------
- STEP 4 — TAG & PUSH IMAGES TO LOCAL REGISTRY
+ WHAT THE SCRIPT DOES AUTOMATICALLY
 --------------------------------------------------------
 
-docker tag airgap-backend:1.0 localhost:5000/airgap-backend:1.0
-docker tag airgap-frontend:1.0 localhost:5000/airgap-frontend:1.0
-
-docker push localhost:5000/airgap-backend:1.0
-docker push localhost:5000/airgap-frontend:1.0
-
---------------------------------------------------------
- STEP 5 — DEPLOY KUBERNETES MANIFESTS
---------------------------------------------------------
-
-kubectl apply -f k8s/backend/
-kubectl apply -f k8s/frontend/
+- Validates Docker and Kubernetes availability
+- Loads backend and frontend Docker images
+- Starts local container registry if required
+- Pushes images to local registry (localhost:5000)
+- Deploys Kubernetes manifests
+- Displays deployment status
 
 --------------------------------------------------------
- STEP 6 — VERIFY DEPLOYMENT
+ STEP 3 — VERIFY DEPLOYMENT
 --------------------------------------------------------
 
 kubectl get pods
 kubectl get svc
 
-Ensure both frontend and backend pods are in "Running" state.
+Ensure both frontend and backend pods show:
+
+STATUS: Running
 
 --------------------------------------------------------
- STEP 7 — OPEN APPLICATION
+ STEP 4 — OPEN APPLICATION
 --------------------------------------------------------
 
-From service output, find frontend NodePort:
+Get frontend NodePort:
 
 kubectl get svc frontend
 
-Example output:
-frontend   NodePort   ...   80:32418/TCP
+Example:
+
+frontend   NodePort   ...   3000:30080/TCP
 
 Open in browser:
 
-http://localhost:32418
+http://localhost:30080
 
 --------------------------------------------------------
- STEP 8 — TEST BACKEND API (OPTIONAL)
+ STEP 5 — BACKEND API TEST (OPTIONAL)
 --------------------------------------------------------
 
 kubectl port-forward svc/backend 4000:4000
 
 Open:
 
-http://localhost:4000/analytics
+http://localhost:4000
 
 Stop forwarding using CTRL + C
+
+--------------------------------------------------------
+ TROUBLESHOOTING
+--------------------------------------------------------
+
+View pod logs:
+
+kubectl logs deploy/backend
+kubectl logs deploy/frontend
+
+Restart deployment:
+
+kubectl delete -f k8s/
+kubectl apply -f k8s/
+
+--------------------------------------------------------
+ SUPPORT
+--------------------------------------------------------
+
+Contact DevOps / Engineering Team
 
 ========================================================
